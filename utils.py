@@ -1,26 +1,31 @@
 import torch
 import numpy as np
-from os import listdir
 import cv2
-from scipy import ndimage
 from torchvision import transforms
 from imageio import imread
-def list_images(directory):
-    images = []
-    names = []
-    dir = listdir(directory)
-    dir.sort()
-    for file in dir:
-        name = file.lower()
-        if name.endswith('.png'):
-            images.append( file)
-        elif name.endswith('.jpg'):
-            images.append(file)
-        elif name.endswith('.jpeg'):
-            images.append(file)
-        name1 = name.split('.')
-        names.append(name1[0])
-    return images
+import os
+
+# ✅ THIS IS THE CORRECTED FUNCTION THAT SEARCHES ALL SUBFOLDERS
+def list_images(path):
+    """
+    Recursively finds all image paths in the 'visible' subdirectories of a given path.
+    Returns a list of full, absolute paths to the visible images.
+    """
+    image_paths = []
+    valid_extensions = ('.png', '.jpg', '.jpeg')
+    
+    # os.walk will go through every folder and file in the directory tree
+    for root, dirs, files in os.walk(path):
+        # We only care about images inside a folder named 'visible'
+        if 'visible' in root:
+            for file in files:
+                if file.lower().endswith(valid_extensions):
+                    # Add the full path to the image
+                    image_paths.append(os.path.join(root, file))
+                    
+    return sorted(image_paths)
+
+# --- The rest of the functions are unchanged ---
 
 def get_image(path, height=256, width=256, mode='L'):
     if mode == 'L':
@@ -51,12 +56,13 @@ def get_test_images(paths, height=None, width=None, mode='L'):
         paths = [paths]
     images = []
     for path in paths:
-        image = get_image(path, height, width, mode=mode) 
-        w, h = image.shape[0], image.shape[1]
-        w_s = 256 - w % 256
-        h_s = 256 - h % 256
-        image = cv2.copyMakeBorder(image, 0, w_s, 0, h_s, cv2.BORDER_CONSTANT,
-                                     value=128)
+        image = get_image(path, height, width, mode=mode)
+        if height is None and width is None:
+            w, h = image.shape[0], image.shape[1]
+            w_pad = (256 - w % 256) % 256
+            h_pad = (256 - h % 256) % 256
+            image = cv2.copyMakeBorder(image, 0, w_pad, 0, h_pad, cv2.BORDER_CONSTANT, value=128)
+        
         if mode == 'L':
             image = np.reshape(image, [1, image.shape[0], image.shape[1]])
         else:
